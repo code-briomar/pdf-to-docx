@@ -1,0 +1,5 @@
+venv311/
+__pycache__/
+*.pyc
+*.checkpoint.json
+*.docx.log

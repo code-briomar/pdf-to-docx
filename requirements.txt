@@ -1,0 +1,8 @@
+pymupdf
+python-docx
+paddleocr
+paddlepaddle
+Pillow
+opencv-python
+pikepdf
+numpy

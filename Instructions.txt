@@ -1,0 +1,9 @@
+In cmd.exe:
+
+venv311\Scripts\activate
+python convert.py ./test/2.pdf -o ./test/2.docx
+
+In PowerShell:
+
+venv311\Scripts\Activate.ps1
+python convert.py ./test/2.pdf -o ./test/2.docx
