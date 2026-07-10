@@ -55,8 +55,53 @@ Optional flags:
 |---|---|
 | `--force-ocr` | Run OCR on every page even if a text layer exists (use for PDFs with a broken/garbled text layer) |
 | `--lang` | OCR language, default `en` |
-| `--dpi` | Rasterization DPI for scanned pages, default `300` |
+| `--dpi` | Rasterization DPI for scanned pages, default `400` |
 | `--min-confidence` | Confidence threshold (0–1) below which a page is flagged in the log for manual review, default `0.6` |
+
+## Running OCR on scanned/image-based PDFs
+
+OCR (via PaddleOCR, fully local/offline) kicks in automatically per page —
+you don't need to request it. A page goes through OCR instead of native
+text extraction when:
+
+- it has no text layer at all (a scanned page or image-based PDF)
+- its text layer is present but garbled/gibberish (broken prior OCR baked in)
+- it has a suspiciously tiny amount of real text sitting on top of what's
+  clearly image content (e.g. a screenshot exported to PDF)
+
+Just run the normal command — no flags needed for a typical scanned PDF:
+
+```bash
+python convert.py scanned.pdf -o scanned.docx
+```
+
+To force OCR on **every** page, even ones with a text layer (useful when a
+PDF's embedded text is technically present but wrong or unreliable):
+
+```bash
+python convert.py input.pdf -o output.docx --force-ocr
+```
+
+Tuning OCR for a specific document:
+
+```bash
+# Higher DPI = more real pixels for OCR to work with, helps with small/dense
+# text (raise this before reaching for anything else if accuracy is poor)
+python convert.py input.pdf -o output.docx --dpi 600
+
+# Non-English documents
+python convert.py input.pdf -o output.docx --lang ch
+
+# Password-protected PDF
+python convert.py input.pdf -o output.docx --password mypassword
+```
+
+After a run, check `<output>.docx.log` (created next to your output file) —
+it lists any pages that scored below `--min-confidence` and should be
+proofread manually. No log file means every page cleared the bar.
+
+The first OCR run downloads PaddleOCR's model weights (a few hundred MB,
+one-time, cached locally) — subsequent runs are fully offline.
 
 ## Packaging into a standalone executable
 
@@ -77,17 +122,18 @@ Python installed — usable like any other command-line tool.
 | **Scanned pages with skew/rotation** | OCR accuracy drops sharply past ~5° skew | Deskew pass (OpenCV) runs before OCR on every rasterized page |
 | **Low-resolution scans (<150 DPI source)** | Garbled or missing characters | Upscale before OCR; flag pages below a confidence threshold in the output log rather than silently guessing |
 | **Mixed text + scanned pages in one PDF** | Naive tools OCR everything or nothing | Per-page text-layer detection, handled independently per page |
-| **Multi-column layouts (newspapers, academic papers)** | OCR reads across columns, scrambling sentence order | Layout-aware extraction (Azure Layout model, or PaddleOCR's layout detection) instead of raw left-to-right OCR |
-| **Tables** | Most convertible tools flatten tables into run-on text | Table structure detection reconstructs actual Word tables, not text blocks |
+| **Multi-column layouts (newspapers, academic papers)** | OCR reads across columns, scrambling sentence order | Gap-based column clustering reorders text blocks by x-position before top-to-bottom reading, on both the native-text and OCR paths |
+| **Tables in native (text-layer) PDFs** | Most convertible tools flatten tables into run-on text | PyMuPDF table detection reconstructs actual Word tables, not text blocks |
+| **Tables in scanned/image-only PDFs** | Table structure (rows/columns) is lost | Not currently reconstructed — comes out as plain OCR'd paragraphs, since PaddleOCR (used for the OCR path) does text recognition only, not table-layout detection |
 | **Handwritten text** | Standard OCR is unreliable on handwriting; PaddleOCR is tuned for printed text | Detected and flagged in the output log as low-confidence rather than silently producing wrong text — treat as a draft to proofread manually |
 | **Password-protected / encrypted PDFs** | Tool can't open the file at all | Detected upfront with a clear error rather than a silent crash; user must supply the password |
 | **Corrupted or malformed PDFs** | Parser crashes mid-file | Wrapped in error handling; attempts a repair pass (via `pikepdf`) before giving up |
 | **Non-English text / mixed-language documents** | Wrong language model = garbage output | `--lang` flag, with auto-detection fallback per page where possible |
-| **Embedded images that aren't OCR targets (logos, photos, signatures)** | Tool tries to OCR meaningless image regions | Layout detection distinguishes body text regions from decorative/photo regions and skips the latter |
+| **Embedded images that aren't OCR targets (logos, photos, signatures)** | Tool tries to OCR meaningless image regions | Text detection only runs where it finds actual character shapes, so pure-image regions naturally produce no text lines |
 | **Very large PDFs (100+ pages)** | Memory issues, slow processing, API cost | Streamed page-by-page processing instead of loading the whole doc into memory; progress logging so it doesn't look hung |
 | **PDFs with a text layer that's garbled or wrong (bad prior OCR baked in)** | Tool trusts the fake "native" text layer and skips OCR, producing garbage | `--force-ocr` flag overrides text-layer detection; tool also does a sanity check (gibberish-ratio heuristic) and can auto-flag suspect pages |
 | **Footnotes, headers/footers, page numbers** | Get interleaved into body text at the wrong spot | Positional filtering keeps repeating header/footer regions separate from main content flow |
-| **Forms with checkboxes/fields** | OCR reads checkbox glyphs as random characters | Selection-mark detection (available in both PaddleOCR layout models and Azure) instead of treating checkboxes as text |
+| **Forms with checkboxes/fields** | OCR reads checkbox glyphs as random characters | Not specifically handled — checkbox/field glyphs may come through as stray characters in the output text, worth a manual glance on form-heavy documents |
 | **Non-Latin scripts (Arabic, CJK, etc.)** | Wrong reading order (RTL) or missing character sets | PaddleOCR ships separate language models (`--lang ch`, `--lang arabic`, etc.) that must be selected explicitly — tool detects script mismatch and warns rather than silently mis-OCRing |
 | **No GPU available** | OCR on CPU is noticeably slower, especially on large scanned batches | Runs on CPU by default with no extra setup; GPU auto-used if `paddlepaddle-gpu` + CUDA are detected, otherwise falls back cleanly |
 | **Long-running batch job interrupted (crash, closed terminal)** | Have to restart from page 1 | Per-page progress checkpointing — a resumed run skips pages already converted |
@@ -97,6 +143,7 @@ Python installed — usable like any other command-line tool.
 
 - Handwriting accuracy will never be as reliable as typed text — treat OCR'd handwriting as a draft to proofread, not a final transcription.
 - Extremely dense or unusual table layouts (merged cells, rotated headers) may still need manual cleanup.
+- Tables in scanned/image-only PDFs aren't reconstructed as tables — they come out as plain OCR'd text.
 - Local OCR engines generally trail cloud services on very messy/low-quality scans and complex tables — good enough for most personal documents, but not flawless on the hardest cases.
 - CPU-only processing is slower than a GPU or cloud pipeline — fine for occasional use, less fine for batch-converting hundreds of pages at once.
 - This tool won't preserve exact visual fidelity (fonts, precise spacing) — it preserves *content and structure*, which is what actually matters for an editable Word doc.
