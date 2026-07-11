@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-"""Minimal local web UI for convert.py: upload a PDF, wait, download the docx.
-
-Runs convert.py as a subprocess -- does not import or touch its logic.
-"""
-import subprocess
+"""Minimal local web UI for convert.py: upload a PDF, wait, download the docx."""
+import contextlib
+import io
 import sys
 import tempfile
 import uuid
@@ -12,8 +10,8 @@ from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse
 
-APP_DIR = Path(__file__).parent
-CONVERT_SCRIPT = APP_DIR / "convert.py"
+import convert as convert_module
+
 JOBS_DIR = Path(tempfile.gettempdir()) / "pdf_to_docx_jobs"
 JOBS_DIR.mkdir(exist_ok=True)
 
@@ -274,12 +272,25 @@ def convert(file: UploadFile = File(...)):
 
     input_path.write_bytes(file.file.read())
 
-    result = subprocess.run(
-        [sys.executable, str(CONVERT_SCRIPT), str(input_path), "-o", str(output_path)],
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0 or not output_path.exists():
-        raise HTTPException(500, f"Conversion failed: {result.stderr[-2000:]}")
+    # ponytail: in-process call, not a subprocess -- a frozen desktop exe has no
+    # separate python interpreter for sys.executable to point at. sys.argv swap
+    # is not thread-safe under concurrent requests; fine for single-user desktop use.
+    stderr = io.StringIO()
+    old_argv = sys.argv
+    sys.argv = ["convert.py", str(input_path), "-o", str(output_path)]
+    try:
+        with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(stderr):
+            convert_module.main()
+        error = None
+    except SystemExit as e:
+        error = f"exit code {e.code}" if e.code else None
+    except Exception as e:
+        error = str(e)
+    finally:
+        sys.argv = old_argv
+
+    if error or not output_path.exists():
+        raise HTTPException(500, f"Conversion failed: {error or stderr.getvalue()[-2000:]}")
 
     out_name = Path(file.filename).stem + ".docx"
     return FileResponse(
