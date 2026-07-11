@@ -1,4 +1,4 @@
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 # ponytail: static JSON file you host (GitHub raw/Pages, S3, etc) with
 # {"version": "1.0.1", "url": "https://.../pdf-to-docx-1.0.1.exe"}

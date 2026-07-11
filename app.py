@@ -231,19 +231,32 @@ def index():
               const detail = await res.json().catch(() => ({}));
               throw new Error(detail.detail || ('Conversion failed (HTTP ' + res.status + ')'));
             }
-            ticksLabel.textContent = 'Done';
             const disposition = res.headers.get('Content-Disposition') || '';
             const match = disposition.match(/filename="?([^"]+)"?/);
             const outName = match ? match[1] : 'output.docx';
             const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = outName;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
+
+            if (window.pywebview) {
+              // Desktop window has no browser download manager -- ask the
+              // native side to show a Save As dialog instead.
+              const base64Data = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                reader.readAsDataURL(blob);
+              });
+              const saved = await window.pywebview.api.save_docx(outName, base64Data);
+              ticksLabel.textContent = saved ? 'Done' : 'Cancelled';
+            } else {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = outName;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              URL.revokeObjectURL(url);
+              ticksLabel.textContent = 'Done';
+            }
           } catch (err) {
             clearInterval(timer);
             ticksLabel.textContent = 'Failed';
