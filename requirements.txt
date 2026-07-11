@@ -6,3 +6,6 @@ Pillow
 opencv-python
 pikepdf
 numpy
+fastapi
+uvicorn
+python-multipart

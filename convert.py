@@ -320,7 +320,8 @@ def build_docx(pages_blocks, output_path):
                 table.style = "Table Grid"
                 for r, row in enumerate(rows):
                     for c in range(ncols):
-                        table.cell(r, c).text = row[c] if c < len(row) else ""
+                        cell_text = row[c] if c < len(row) else ""
+                        table.cell(r, c).text = cell_text or ""
             else:
                 text = b["text"]
                 level = b.get("level")
