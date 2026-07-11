@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PDF to DOCX</title>
+<style>
+  :root {
+    --color-ink: #292929;
+    --color-paper: #ffffff;
+    --font-nh: Inter, "Helvetica Neue", Arial, sans-serif;
+    --font-s-condensed: "Roboto Condensed", "Barlow Condensed", "Univers Condensed", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-nh);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .cell {
+    border: 2px solid var(--color-ink);
+    border-radius: 0;
+    padding: 43px 45px;
+    max-width: 480px;
+    width: 100%;
+  }
+  h1 {
+    font-family: var(--font-nh);
+    font-weight: 300;
+    font-size: 43px;
+    line-height: 1.34;
+    letter-spacing: -0.02em;
+    margin: 0 0 8px;
+  }
+  .label {
+    font-family: var(--font-s-condensed);
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin: 0 0 20px;
+  }
+  p.body {
+    font-family: var(--font-nh);
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0 0 20px;
+  }
+  a.button {
+    display: inline-block;
+    background: transparent;
+    border: 1px solid var(--color-ink);
+    border-radius: 0;
+    padding: 12px 20px;
+    color: var(--color-ink);
+    font-family: var(--font-s-condensed);
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  a.button:hover { background: var(--color-ink); color: var(--color-paper); }
+  .meta {
+    margin-top: 12px;
+    font-family: var(--font-s-condensed);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-ink);
+  }
+  .warning {
+    border: 1px solid var(--color-ink);
+    padding: 12px 20px;
+    margin-top: 20px;
+    font-family: var(--font-s-condensed);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  footer {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px solid var(--color-ink);
+    font-family: var(--font-s-condensed);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+  }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+  <div class="cell">
+    <p class="label">Desktop App</p>
+    <h1>PDF to DOCX</h1>
+    <p class="body">
+      A fully local, offline converter for text-based, scanned, or mixed
+      PDFs. No cloud, no API keys, no per-page cost. Runs on your machine.
+    </p>
+    <a class="button" href="https://github.com/code-briomar/pdf-to-docx/releases/latest/download/pdf_to_docx.exe">
+      Download for Windows
+    </a>
+    <p class="meta" id="version-meta">Checking latest version&hellip;</p>
+    <div class="warning">
+      Unsigned build &mdash; Windows SmartScreen will warn on first run.
+      Click "More info" &rarr; "Run anyway" to proceed.
+    </div>
+  </div>
+  <script>
+    fetch('https://github.com/code-briomar/pdf-to-docx/releases/latest/download/latest.json')
+      .then(r => r.json())
+      .then(d => {
+        document.getElementById('version-meta').textContent = 'Version ' + d.version;
+      })
+      .catch(() => {
+        document.getElementById('version-meta').textContent = '';
+      });
+  </script>
+  <footer>
+    <a href="https://github.com/code-briomar/pdf-to-docx">Source on GitHub</a>
+  </footer>
+</body>
+</html>
